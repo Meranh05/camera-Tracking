@@ -17,15 +17,6 @@ __pycache__/
 *.onnx
 *.engine
 
-# Video 
-videos/*.mp4
-videos/*.avi
-videos/*.mov
-videos/*.mkv
-screenshots/*.jpg
-screenshots/*.jpeg
-screenshots/*.png
-
 # IDE / OS
 .idea/
 .vscode/
