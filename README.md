@@ -165,3 +165,33 @@ python -m pip install -r requirements.txt
 - `ultralytics`
 - `opencv-python`
 - `customtkinter`
+
+## 10) Nguồn data video
+
+### Video stock (tải nhanh, dùng thử trong project)
+
+Gợi ý từ khóa tìm kiếm: `people in room`, `office people`, `crowd`, `meeting room`, `walking people`.
+
+| Nguồn | Link | Ghi chú |
+| --- | --- | --- |
+| **Pexels** | https://www.pexels.com/videos/ | Nhiều clip miễn phí; xem license từng video. |
+| **Pixabay** | https://pixabay.com/videos/ | Tìm `crowd`, `indoor`, `people walking`. |
+| **Coverr** | https://coverr.co/videos | Video ngắn, nhiều cảnh trong nhà / văn phòng. |
+| **Mixkit** | https://mixkit.co/free-stock-video/people/ | Category people / crowd. |
+
+### Dataset nghiên cứu (video dài, có nhãn / cảnh trong nhà)
+
+| Dataset | Mô tả ngắn | Link |
+| --- | --- | --- |
+| **PIROPO** | Người trong phòng, camera thường / 360° | https://www.gti.ssr.upm.es/research/gti-data/databases |
+| **IndoorCrowd** | Cảnh trong nhà, nhiều người (Hugging Face) | https://huggingface.co/datasets/sebnae/IndoorCrowd |
+| **MOT Challenge** | Đường phố, nhiều người đi bộ (hay dùng cho tracking) | https://motchallenge.net/ |
+| **Oxford Town Centre** | Camera cố định, đông người ngoài trời (kinh điển cho đếm người) | Tìm *Oxford Town Centre dataset* trên Google / GitHub (có mirror). |
+
+### Cách dùng trong project
+
+1. Tải file `.mp4` (hoặc đổi sang `.mp4` nếu cần).
+2. Đặt vào thư mục `videos/` của project (ví dụ `videos/room.mp4`).
+3. Trong UI, nhập đường dẫn video hoặc **Browse** để chọn file.
+
+---
