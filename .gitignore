@@ -1,0 +1,34 @@
+# Môi trường Python
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Bytecode / cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# Model YOLO (tải lần đầu hoặc đặt tay — file lớn, không cần commit)
+*.pt
+*.onnx
+*.engine
+
+# Video / ảnh chạy thử (thường rất nặng)
+videos/*.mp4
+videos/*.avi
+videos/*.mov
+videos/*.mkv
+screenshots/*.jpg
+screenshots/*.jpeg
+screenshots/*.png
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
