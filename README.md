@@ -1,7 +1,14 @@
 # People Counting in a Room
 ## YOLOv8 + OpenCV + CustomTkinter
 
-> Ứng dụng đếm số người trong phòng từ video, hiển thị theo thời gian thực và cảnh báo khi vượt ngưỡng.
+### Nhóm thực hiện
+| MSSV | Họ và tên | Email |
+| --- | --- | --- |
+| 2312607 | Nguyễn Ngọc Hân | 2312607@dlu.edu.vn |
+| 2312697 | Nguyễn Thị Trường Nga | 2312697@dlu.edu.vn |
+
+
+> Ứng dụng đếm số người trong phòng từ input video, hiển thị theo thời gian thực và cảnh báo khi vượt ngưỡng.
 
 ---
 
