@@ -76,11 +76,19 @@ class PeopleCountingApp(ctk.CTk):
         card.grid(row=1, column=0, padx=24, pady=(4, 6), sticky="ew")
         card.grid_columnconfigure(1, weight=1)
 
+        btn_font_bold = ctk.CTkFont(size=13, weight="bold")
+
         ctk.CTkLabel(card, text="Video file").grid(row=0, column=0, padx=14, pady=12, sticky="w")
         ctk.CTkEntry(card, textvariable=self.video_path_var).grid(row=0, column=1, padx=10, pady=12, sticky="ew")
-        ctk.CTkButton(card, text="Browse", width=100, command=self._pick_video).grid(
-            row=0, column=2, padx=(0, 14), pady=12
-        )
+        ctk.CTkButton(
+            card,
+            text="Browse",
+            width=100,
+            font=btn_font_bold,
+            fg_color="#6366f1",
+            hover_color="#4f46e5",
+            command=self._pick_video,
+        ).grid(row=0, column=2, padx=(0, 14), pady=12)
 
         ctk.CTkLabel(card, text="YOLO model").grid(row=1, column=0, padx=14, pady=12, sticky="w")
         ctk.CTkEntry(card, textvariable=self.model_path_var).grid(row=1, column=1, padx=10, pady=12, sticky="ew")
@@ -105,21 +113,34 @@ class PeopleCountingApp(ctk.CTk):
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.grid(row=2, column=0, padx=24, pady=(6, 6), sticky="ew")
 
-        ctk.CTkButton(btn_frame, text="Start",fg_color="blue", width=170,font=ctk.CTkFont(size=14, weight="bold"), command=self._start).pack(side="left")
+        primary_fg = "#2563eb"
+        primary_hover = "#1d4ed8"
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Start",
+            width=170,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=primary_fg,
+            hover_color=primary_hover,
+            command=self._start,
+        ).pack(side="left")
         ctk.CTkButton(
             btn_frame,
             text="About",
             width=100,
-            fg_color="blue",
-            hover_color="#3246ab",
+            font=btn_font_bold,
+            fg_color=primary_fg,
+            hover_color=primary_hover,
             command=self._show_about,
         ).pack(side="left", padx=(10, 0))
         ctk.CTkButton(
             btn_frame,
             text="Exit",
             width=120,
-            fg_color="#444444",
-            hover_color="#333333",
+            font=btn_font_bold,
+            fg_color=primary_fg,
+            hover_color=primary_hover,
             command=self.destroy,
         ).pack(side="left", padx=10)
 
