@@ -12,12 +12,12 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 
-# Model YOLO (tải lần đầu hoặc đặt tay — file lớn, không cần commit)
+# Model YOLO 
 *.pt
 *.onnx
 *.engine
 
-# Video / ảnh chạy thử (thường rất nặng)
+# Video 
 videos/*.mp4
 videos/*.avi
 videos/*.mov
