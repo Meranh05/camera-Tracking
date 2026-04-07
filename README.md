@@ -9,7 +9,6 @@
 
 > Ứng dụng đếm số người trong phòng / quán cafe từ video hoặc camera, hiển thị theo thời gian thực, gán ID, đo thời gian ngồi và ghi lại thống kê (SQLite + CSV reports).
 
-http://192.168.1.9:4747/video
 ---
 
 ## 1) Mô tả bài toán
