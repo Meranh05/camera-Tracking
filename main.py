@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import traceback
@@ -49,6 +50,13 @@ class PeopleCountingApp(ctk.CTk):
         ctk.set_default_color_theme("blue")  
 
         self.video_path_var = ctk.StringVar(value="videos/room.mp4")
+        # Danh sách camera sources (RTSP/HTTP/webcam index) để chọn nhanh trong Settings.
+        self.camera_sources = []
+        self.camera_sources_var = ctk.StringVar(value="")
+        self.data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+        os.makedirs(self.data_dir, exist_ok=True)
+        self.cameras_json_path = os.path.join(self.data_dir, "cameras.json")
+        self._load_cameras()
         self.model_path_var = ctk.StringVar(value="yolov8n.pt")
         self.threshold_var = ctk.StringVar(value="5") #Số người tối đa cho phép; nếu Count > Threshold thì cảnh báo.
         self.cooldown_var = ctk.StringVar(value="5") #Cứ sau N giây lưu 1 ảnh (khi bật lưu ảnh).
@@ -58,6 +66,38 @@ class PeopleCountingApp(ctk.CTk):
         self._build_ui()  # Tạo toàn bộ nút và ô nhập
         self._fit_window_to_content()  # Cho cửa sổ vừa nội dung (tránh cắt chữ)
         self.deiconify()
+
+    def _load_cameras(self) -> None:
+        """Load danh sách camera sources từ data/cameras.json (nếu có)."""
+        try:
+            if not os.path.isfile(self.cameras_json_path):
+                self.camera_sources = []
+                return
+            with open(self.cameras_json_path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            sources = payload.get("sources", [])
+            if isinstance(sources, list):
+                cleaned = []
+                for s in sources:
+                    if isinstance(s, str):
+                        s2 = s.strip()
+                        if s2 and s2 not in cleaned:
+                            cleaned.append(s2)
+                self.camera_sources = cleaned
+            else:
+                self.camera_sources = []
+        except Exception:
+            self.camera_sources = []
+
+    def _save_cameras(self) -> None:
+        """Save danh sách camera sources vào data/cameras.json."""
+        try:
+            payload = {"sources": self.camera_sources}
+            with open(self.cameras_json_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+        except Exception:
+            # không crash UI nếu ghi file lỗi
+            pass
 
     def _build_ui(self) -> None:
         """Dựng giao diện: tiêu đề, khung nhập liệu, nút Start / About / Exit, dòng trạng thái."""
@@ -91,7 +131,17 @@ class PeopleCountingApp(ctk.CTk):
         ).grid(row=0, column=2, padx=(0, 14), pady=12)
 
         ctk.CTkLabel(card, text="YOLO model").grid(row=1, column=0, padx=14, pady=12, sticky="w")
-        ctk.CTkEntry(card, textvariable=self.model_path_var).grid(row=1, column=1, padx=10, pady=12, sticky="ew")
+        # Gộp ô nhập + preset thành một combo duy nhất:
+        # - Có sẵn các lựa chọn yolov8n/s/m/l/x
+        # - Cho phép gõ tay đường dẫn .pt khác.
+        preset_models = ["yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt"]
+        self.model_combo = ctk.CTkComboBox(
+            card,
+            values=preset_models,
+            variable=self.model_path_var,
+            width=320,
+        )
+        self.model_combo.grid(row=1, column=1, padx=10, pady=6, sticky="ew", columnspan=2)
 
         ctk.CTkLabel(card, text="Threshold").grid(row=2, column=0, padx=14, pady=12, sticky="w")
         ctk.CTkEntry(card, textvariable=self.threshold_var, width=140).grid(row=2, column=1, padx=10, pady=12, sticky="w")
@@ -136,13 +186,22 @@ class PeopleCountingApp(ctk.CTk):
         ).pack(side="left", padx=(10, 0))
         ctk.CTkButton(
             btn_frame,
+            text="Settings",
+            width=120,
+            font=btn_font_bold,
+            fg_color=primary_fg,
+            hover_color=primary_hover,
+            command=self._show_settings,
+        ).pack(side="left", padx=(10, 0))
+        ctk.CTkButton(
+            btn_frame,
             text="Exit",
             width=120,
             font=btn_font_bold,
             fg_color=primary_fg,
             hover_color=primary_hover,
             command=self.destroy,
-        ).pack(side="left", padx=10)
+        ).pack(side="left", padx=(10, 0))
 
         self.status_label = ctk.CTkLabel(
             self,
@@ -178,6 +237,120 @@ class PeopleCountingApp(ctk.CTk):
         btn_row.pack(fill="x", padx=16, pady=(0, 16))
         ctk.CTkButton(btn_row, text="Đóng", width=120, command=win.destroy).pack(side="right")
 
+    def _show_settings(self) -> None:
+        """Settings: quản lý nguồn camera/stream (thêm camera IP, chọn nhanh để chạy)."""
+        win = ctk.CTkToplevel(self)
+        win.title("Settings — Cameras")
+        win.geometry("720x520")
+        win.minsize(560, 420)
+        win.transient(self)
+        win.grab_set()
+
+        win.grid_columnconfigure(0, weight=1)
+        win.grid_rowconfigure(2, weight=1)
+
+        title = ctk.CTkLabel(
+            win,
+            text="Camera sources",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        )
+        title.grid(row=0, column=0, padx=16, pady=(16, 8), sticky="w")
+
+        hint = ctk.CTkLabel(
+            win,
+            text="Ví dụ: 0 (webcam), http://<ip>:8080/video, rtsp://user:pass@<ip>:554/stream",
+            font=ctk.CTkFont(size=12),
+            text_color="gray70",
+            wraplength=660,
+            justify="left",
+        )
+        hint.grid(row=1, column=0, padx=16, pady=(0, 10), sticky="w")
+
+        list_frame = ctk.CTkFrame(win, corner_radius=12)
+        list_frame.grid(row=2, column=0, padx=16, pady=(0, 12), sticky="nsew")
+        list_frame.grid_columnconfigure(0, weight=1)
+        list_frame.grid_rowconfigure(1, weight=1)
+
+        # Combobox hiển thị danh sách source đã lưu
+        values = self.camera_sources if self.camera_sources else ["(empty)"]
+        combo = ctk.CTkComboBox(
+            list_frame,
+            values=values,
+            variable=self.camera_sources_var,
+            width=520,
+        )
+        if self.camera_sources:
+            combo.set(self.camera_sources[0])
+            self.camera_sources_var.set(self.camera_sources[0])
+        else:
+            combo.set("(empty)")
+            self.camera_sources_var.set("(empty)")
+        combo.grid(row=0, column=0, padx=14, pady=(14, 8), sticky="ew")
+
+        btn_row = ctk.CTkFrame(list_frame, fg_color="transparent")
+        btn_row.grid(row=0, column=1, padx=(8, 14), pady=(14, 8), sticky="e")
+
+        def refresh_combo():
+            combo.configure(values=self.camera_sources if self.camera_sources else ["(empty)"])
+            if self.camera_sources:
+                self.camera_sources_var.set(self.camera_sources[0])
+                combo.set(self.camera_sources[0])
+            else:
+                self.camera_sources_var.set("(empty)")
+                combo.set("(empty)")
+
+        def use_selected():
+            src = self.camera_sources_var.get().strip()
+            if src and src != "(empty)":
+                self.video_path_var.set(src)
+                self._set_status(f"Selected source: {src}")
+                win.destroy()
+
+        def remove_selected():
+            src = self.camera_sources_var.get().strip()
+            if not src or src == "(empty)":
+                return
+            self.camera_sources = [s for s in self.camera_sources if s != src]
+            self._save_cameras()
+            refresh_combo()
+
+        ctk.CTkButton(btn_row, text="Use", width=80, command=use_selected).pack(side="left")
+        ctk.CTkButton(btn_row, text="Remove", width=90, command=remove_selected).pack(side="left", padx=(8, 0))
+
+        # Add camera section
+        add_frame = ctk.CTkFrame(win, corner_radius=12)
+        add_frame.grid(row=3, column=0, padx=16, pady=(0, 16), sticky="ew")
+        add_frame.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            add_frame,
+            text="Add camera / stream",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).grid(row=0, column=0, padx=14, pady=(12, 6), sticky="w", columnspan=2)
+
+        new_src_var = ctk.StringVar(value="")
+        entry = ctk.CTkEntry(add_frame, textvariable=new_src_var, placeholder_text="Enter camera URL or index...")
+        entry.grid(row=1, column=0, padx=14, pady=(0, 12), sticky="ew")
+
+        def add_source():
+            src = new_src_var.get().strip()
+            if not src:
+                return
+            # simple normalize
+            if src not in self.camera_sources:
+                self.camera_sources.insert(0, src)
+            self._save_cameras()
+            new_src_var.set("")
+            refresh_combo()
+
+        ctk.CTkButton(add_frame, text="Add", width=100, command=add_source).grid(
+            row=1, column=1, padx=(0, 14), pady=(0, 12), sticky="e"
+        )
+
+        footer = ctk.CTkFrame(win, fg_color="transparent")
+        footer.grid(row=4, column=0, padx=16, pady=(0, 16), sticky="ew")
+        ctk.CTkButton(footer, text="Close", width=120, command=win.destroy).pack(side="right")
+
     #Xử lý căn chỉnh cửa sổ cho phù hợp với nội dung
     def _fit_window_to_content(self) -> None:
         """Căn cửa sổ sát nội dung."""
@@ -210,7 +383,6 @@ class PeopleCountingApp(ctk.CTk):
         self.status_label.configure(text=f"Status: {text}")
         self.update_idletasks()
 
-
     def _start(self) -> None:
         """Đọc giá trị từ form → kiểm tra → tải YOLO → chạy video và nhận diện (cửa OpenCV)."""
         try:
@@ -223,7 +395,12 @@ class PeopleCountingApp(ctk.CTk):
 
             if not video_path:
                 raise ValueError("Please choose a video file.")
-            if not os.path.isfile(video_path):
+            # Cho phép input là:
+            # - file path (mp4/avi/...)
+            # - webcam index dạng "0", "1", ...
+            # - URL camera/stream (rtsp/http/https)
+            looks_like_file = not (video_path.isdigit() or "://" in video_path)
+            if looks_like_file and not os.path.isfile(video_path):
                 raise FileNotFoundError(f"Video file not found: {video_path}")
             if threshold < 0:
                 raise ValueError("Threshold must be >= 0.")
