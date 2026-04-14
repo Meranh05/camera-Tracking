@@ -92,7 +92,7 @@ class PeopleCounterModel:
         #màu khung nhận diện
         box_color = (0, 230, 90)
         text_color = (255, 255, 255)
-        bg_color = (25, 25, 25)
+        bg_color = (8, 8, 8)
 
         # Khung mỏng để giảm rối khi đông người.
         cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 1)
@@ -104,37 +104,37 @@ class PeopleCounterModel:
         parts.append(f"{confidence * 100:.0f}%")
         label = " | ".join(parts)
 
-        font_scale = 0.62
-        font_thickness = 1
+        font_scale = 0.82
+        font_thickness = 2
         (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
         label_x1 = max(0, x1)
         y_stagger = 0 if track_id is None else (track_id % 3) * 10
         label_y1 = max(0, y1 - th - 10 - y_stagger)
-        label_x2 = label_x1 + tw + 10
-        label_y2 = label_y1 + th + 8
+        label_x2 = label_x1 + tw + 16
+        label_y2 = label_y1 + th + 12
 
         # Nếu không đủ chỗ trên đầu box thì đặt label vào trong box.
         if label_y1 <= 2:
             label_y1 = min(frame.shape[0] - th - 8, y1 + 2 + y_stagger)
-            label_y2 = label_y1 + th + 8
+            label_y2 = label_y1 + th + 12
 
         cv2.rectangle(frame, (label_x1, label_y1), (label_x2, label_y2), bg_color, -1)
-        cv2.rectangle(frame, (label_x1, label_y1), (label_x2, label_y2), box_color, 1)
+        cv2.rectangle(frame, (label_x1, label_y1), (label_x2, label_y2), box_color, 2)
         # Vẽ chữ 2 lớp (đen + trắng) cho dễ đọc trên nền nhiễu.
         cv2.putText(
             frame,
             label,
-            (label_x1 + 5, label_y2 - 4),
+            (label_x1 + 8, label_y2 - 6),
             cv2.FONT_HERSHEY_SIMPLEX,
             font_scale,
             (0, 0, 0),
-            font_thickness + 1,
+            font_thickness + 3,
             cv2.LINE_AA,
         )
         cv2.putText(
             frame,
             label,
-            (label_x1 + 5, label_y2 - 4),
+            (label_x1 + 8, label_y2 - 6),
             cv2.FONT_HERSHEY_SIMPLEX,
             font_scale,
             text_color,
