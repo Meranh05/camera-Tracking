@@ -31,6 +31,8 @@ class DetectionConfig:
     display_height: int = 720  # Kích thước cửa sổ hiển thị (cao)
     process_every_n_frames: int = 3  # Chỉ chạy suy luận mỗi N frame
     max_grab_frames: int = 1  # Số frame grab thêm trước read (giảm trễ)
+    track_every_n_frames: int = 1  # Chạy tracker mỗi N frame, frame giữa dùng cache để tăng FPS
+    performance_mode: str = "balanced"  # fast | balanced | quality
     # Cấu hình cho tracking / session thời gian ngồi
     max_track_lost_seconds: float = 10.0  # Mất dấu quá lâu thì coi như rời quán
     min_session_duration_seconds: float = 5.0  # Chỉ log session nếu ngồi tối thiểu bấy nhiêu giây
@@ -86,36 +88,54 @@ class PeopleCounterModel:
         track_id: Optional[int] = None,
         duration_seconds: Optional[float] = None,
     ) -> None:
-        """Vẽ khung, ID, thời gian ngồi lên frame."""
-        green_outer = (0, 255, 60)
-        green_inner = (0, 170, 0)
+        #màu khung nhận diện
+        box_color = (0, 230, 90)
+        text_color = (255, 255, 255)
+        bg_color = (25, 25, 25)
 
-        cv2.rectangle(frame, (x1, y1), (x2, y2), green_outer, 4)
-        cv2.rectangle(frame, (x1 + 1, y1 + 1), (x2 - 1, y2 - 1), green_inner, 2)
-
-        parts = [f"ID {track_id}" if track_id is not None else "PERSON"]
-        parts.append(f"{confidence * 100:.1f}%")
+        # Khung mỏng để giảm rối khi đông người.
+        cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 1)
+        
+        # Nhãn tối giản: chỉ ID + thời gian (bỏ % để đỡ chồng chữ).
+        parts = [f"ID {track_id}" if track_id is not None else "P"]
         if duration_seconds is not None:
             parts.append(f"{int(duration_seconds)}s")
         label = " | ".join(parts)
 
-        font_scale = 0.72
-        font_thickness = 2
+        font_scale = 0.62
+        font_thickness = 1
         (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
         label_x1 = max(0, x1)
-        label_y1 = max(0, y1 - th - 20)
-        label_x2 = label_x1 + tw + 18
-        label_y2 = label_y1 + th + 14
+        y_stagger = 0 if track_id is None else (track_id % 3) * 10
+        label_y1 = max(0, y1 - th - 10 - y_stagger)
+        label_x2 = label_x1 + tw + 10
+        label_y2 = label_y1 + th + 8
 
-        cv2.rectangle(frame, (label_x1, label_y1), (label_x2, label_y2), green_outer, -1)
-        cv2.rectangle(frame, (label_x1, label_y1), (label_x2, label_y2), (20, 70, 20), 2)
+        # Nếu không đủ chỗ trên đầu box thì đặt label vào trong box.
+        if label_y1 <= 2:
+            label_y1 = min(frame.shape[0] - th - 8, y1 + 2 + y_stagger)
+            label_y2 = label_y1 + th + 8
+
+        cv2.rectangle(frame, (label_x1, label_y1), (label_x2, label_y2), bg_color, -1)
+        cv2.rectangle(frame, (label_x1, label_y1), (label_x2, label_y2), box_color, 1)
+        # Vẽ chữ 2 lớp (đen + trắng) cho dễ đọc trên nền nhiễu.
         cv2.putText(
             frame,
             label,
-            (label_x1 + 9, label_y2 - 9),
+            (label_x1 + 5, label_y2 - 4),
             cv2.FONT_HERSHEY_SIMPLEX,
             font_scale,
             (0, 0, 0),
+            font_thickness + 1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            frame,
+            label,
+            (label_x1 + 5, label_y2 - 4),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            text_color,
             font_thickness,
             cv2.LINE_AA,
         )
@@ -236,6 +256,10 @@ class PeopleCounterModel:
             raise ValueError("process_every_n_frames must be > 0.")
         if config.max_grab_frames < 0:
             raise ValueError("max_grab_frames must be >= 0.")
+        if config.track_every_n_frames <= 0:
+            raise ValueError("track_every_n_frames must be > 0.")
+        if config.performance_mode not in {"fast", "balanced", "quality"}:
+            raise ValueError("performance_mode must be one of: fast, balanced, quality.")
         output_dir = config.output_dir.strip() or "screenshots"
         if not os.path.isabs(output_dir):
             output_dir = os.path.join(self.project_dir, output_dir)
@@ -244,6 +268,19 @@ class PeopleCounterModel:
             os.makedirs(output_dir, exist_ok=True)
             if on_info is not None:
                 on_info(f"Screenshot folder ready: {output_dir}")
+
+        # Preset hiệu năng để dễ cân bằng FPS và chất lượng.
+        effective_imgsz = config.inference_size
+        effective_conf = config.conf_threshold
+        effective_track_every = config.track_every_n_frames
+        if config.performance_mode == "fast":
+            effective_imgsz = min(effective_imgsz, 416)
+            effective_conf = max(effective_conf, 0.40)
+            effective_track_every = max(effective_track_every, 2)
+        elif config.performance_mode == "quality":
+            effective_imgsz = max(effective_imgsz, 640)
+            effective_conf = min(effective_conf, 0.30)
+            effective_track_every = 1
 
         cap = self._open_capture(config.video_path)
         if not cap.isOpened():
@@ -265,6 +302,8 @@ class PeopleCounterModel:
         people_sum = 0
         people_max = 0
         roi = (config.roi_x1, config.roi_y1, config.roi_x2, config.roi_y2)
+        cached_tracks: List[Track] = []
+        cached_conf_by_id = {}
 
         while True:
             for _ in range(config.max_grab_frames):
@@ -279,16 +318,19 @@ class PeopleCounterModel:
             # Nếu muốn tăng tốc, có thể tăng process_every_n_frames và tự nội suy, nhưng sẽ giảm ổn định ID.
             tracks: List[Track] = []
             conf_by_id = {}
-            if self.tracker is not None:
+            run_tracking = (frame_index % effective_track_every == 0)
+            if run_tracking and self.tracker is not None:
                 tracks, conf_by_id = self.tracker.update(
                     frame=frame,
                     now=time.time(),
-                    imgsz=config.inference_size,
-                    conf=config.conf_threshold,
+                    imgsz=effective_imgsz,
+                    conf=effective_conf,
                     classes=[0],
                 )
+                cached_tracks = tracks
+                cached_conf_by_id = conf_by_id
             else:
-                tracks, conf_by_id = [], {}
+                tracks, conf_by_id = cached_tracks, cached_conf_by_id
 
             now = time.time()
 
@@ -363,36 +405,32 @@ class PeopleCounterModel:
             smooth_fps = fps if smooth_fps == 0.0 else (smooth_fps * 0.85 + fps * 0.15)
             prev_time = now
 
-            cv2.putText(
-                frame,
-                f"People Count: {person_count}",
-                (12, 32),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1.05,
-                (255, 255, 255),
-                3,
-                cv2.LINE_AA,
-            )
-            cv2.putText(
-                frame,
-                f"Threshold: {config.threshold}",
-                (12, 74),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.9,
-                (255, 255, 0),
-                2,
-                cv2.LINE_AA,
-            )
-            cv2.putText(
-                frame,
-                f"FPS: {smooth_fps:.2f}",
-                (12, 112),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.9,
-                (0, 255, 255),
-                2,
-                cv2.LINE_AA,
-            )
+            # Khối thông tin góc trái với nền đậm để dễ đọc trên mọi background.
+            def _panel_text(y: int, text: str, color: Tuple[int, int, int]) -> None:
+                cv2.putText(
+                    frame,
+                    text,
+                    (18, y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.88,
+                    (0, 0, 0),
+                    4,
+                    cv2.LINE_AA,
+                )
+                cv2.putText(
+                    frame,
+                    text,
+                    (18, y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.88,
+                    color,
+                    2,
+                    cv2.LINE_AA,
+                )
+
+            _panel_text(42, f"People Count: {person_count}", (255, 255, 255))
+            _panel_text(80, f"Threshold: {config.threshold}", (255, 255, 0))
+            _panel_text(118, f"FPS: {smooth_fps:.2f}", (0, 255, 255))
 
             if config.use_roi and (roi[2] > roi[0]) and (roi[3] > roi[1]):
                 cv2.rectangle(frame, (roi[0], roi[1]), (roi[2], roi[3]), (255, 0, 255), 2)
@@ -479,9 +517,9 @@ class PeopleCounterModel:
             avg_people = people_sum / total_frames
             stats = ModelRunStats(
                 model_path=config.model_path,
-                inference_size=config.inference_size,
-                conf_threshold=config.conf_threshold,
-                process_every_n_frames=config.process_every_n_frames,
+                inference_size=effective_imgsz,
+                conf_threshold=effective_conf,
+                process_every_n_frames=effective_track_every,
                 max_track_lost_seconds=config.max_track_lost_seconds,
                 started_at=start_time,
                 duration_seconds=total_time,
