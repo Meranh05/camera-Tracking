@@ -33,6 +33,7 @@ class DetectionConfig:
     max_grab_frames: int = 1  # Số frame grab thêm trước read (giảm trễ)
     track_every_n_frames: int = 1  # Chạy tracker mỗi N frame, frame giữa dùng cache để tăng FPS
     performance_mode: str = "balanced"  # fast | balanced | quality
+    draw_labels_every_n_frames: int = 1  # Vẽ label mỗi N frame để giảm tải render
     # Cấu hình cho tracking / session thời gian ngồi
     max_track_lost_seconds: float = 10.0  # Mất dấu quá lâu thì coi như rời quán
     min_session_duration_seconds: float = 5.0  # Chỉ log session nếu ngồi tối thiểu bấy nhiêu giây
@@ -96,10 +97,11 @@ class PeopleCounterModel:
         # Khung mỏng để giảm rối khi đông người.
         cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 1)
         
-        # Nhãn tối giản: chỉ ID + thời gian (bỏ % để đỡ chồng chữ).
+        # Nhãn gọn: ID + thời gian + % nhận diện.
         parts = [f"ID {track_id}" if track_id is not None else "P"]
         if duration_seconds is not None:
             parts.append(f"{int(duration_seconds)}s")
+        parts.append(f"{confidence * 100:.0f}%")
         label = " | ".join(parts)
 
         font_scale = 0.62
@@ -258,6 +260,8 @@ class PeopleCounterModel:
             raise ValueError("max_grab_frames must be >= 0.")
         if config.track_every_n_frames <= 0:
             raise ValueError("track_every_n_frames must be > 0.")
+        if config.draw_labels_every_n_frames <= 0:
+            raise ValueError("draw_labels_every_n_frames must be > 0.")
         if config.performance_mode not in {"fast", "balanced", "quality"}:
             raise ValueError("performance_mode must be one of: fast, balanced, quality.")
         output_dir = config.output_dir.strip() or "screenshots"
@@ -273,14 +277,19 @@ class PeopleCounterModel:
         effective_imgsz = config.inference_size
         effective_conf = config.conf_threshold
         effective_track_every = config.track_every_n_frames
+        effective_draw_every = config.draw_labels_every_n_frames
+        effective_max_grab = config.max_grab_frames
         if config.performance_mode == "fast":
             effective_imgsz = min(effective_imgsz, 416)
             effective_conf = max(effective_conf, 0.40)
             effective_track_every = max(effective_track_every, 2)
+            effective_draw_every = max(effective_draw_every, 2)
+            effective_max_grab = max(effective_max_grab, 2)
         elif config.performance_mode == "quality":
             effective_imgsz = max(effective_imgsz, 640)
             effective_conf = min(effective_conf, 0.30)
             effective_track_every = 1
+            effective_draw_every = 1
 
         cap = self._open_capture(config.video_path)
         if not cap.isOpened():
@@ -306,7 +315,7 @@ class PeopleCounterModel:
         cached_conf_by_id = {}
 
         while True:
-            for _ in range(config.max_grab_frames):
+            for _ in range(effective_max_grab):
                 if not cap.grab():
                     break
 
@@ -378,16 +387,19 @@ class PeopleCounterModel:
                 det_conf = float(conf_by_id.get(tr.track_id, 0.0))
 
                 if in_roi_by_id.get(tr.track_id, True):
-                    self._draw_person_box(
-                        frame,
-                        x1,
-                        y1,
-                        x2,
-                        y2,
-                        det_conf,
-                        track_id=tr.track_id,
-                        duration_seconds=duration,
-                    )
+                    # Giảm tải render: khung vẽ mọi frame, label vẽ theo chu kỳ.
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 230, 90), 1)
+                    if frame_index % effective_draw_every == 0:
+                        self._draw_person_box(
+                            frame,
+                            x1,
+                            y1,
+                            x2,
+                            y2,
+                            det_conf,
+                            track_id=tr.track_id,
+                            duration_seconds=duration,
+                        )
                 else:
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (120, 120, 120), 2)
                     cv2.putText(
