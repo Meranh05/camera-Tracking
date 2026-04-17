@@ -156,7 +156,7 @@ Nút **About** mở hướng dẫn chi tiết trong một cửa sổ phụ; **Ex
 ### 7.1 Trên video (OpenCV window)
 
 - Khung xanh quanh từng người, nhãn:  
-  `ID <id> | <conf>% | <time>s`.
+  `| ID <id> | <time>s | <conf>% |`
 - Dòng thống kê góc trái trên:
   - `People Count: <số khách trong ROI>`.
   - `Threshold: <ngưỡng>`.
