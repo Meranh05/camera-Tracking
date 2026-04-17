@@ -57,7 +57,7 @@ class PeopleCountingApp(ctk.CTk):
         os.makedirs(self.data_dir, exist_ok=True)
         self.cameras_json_path = os.path.join(self.data_dir, "cameras.json")
         self._load_cameras()
-        self.model_path_var = ctk.StringVar(value="yolov8n.pt")
+        self.model_path_var = ctk.StringVar(value="yolov10m.pt")
         self.threshold_var = ctk.StringVar(value="5") #Số người tối đa cho phép; nếu Count > Threshold thì cảnh báo.
         self.cooldown_var = ctk.StringVar(value="5") #Cứ sau N giây lưu 1 ảnh (khi bật lưu ảnh).
         self.output_dir_var = ctk.StringVar(value="screenshots") #Thư mục lưu ảnh (tương đối thư mục project)
@@ -134,7 +134,16 @@ class PeopleCountingApp(ctk.CTk):
         # Gộp ô nhập + preset thành một combo duy nhất:
         # - Có sẵn các lựa chọn yolov8n/s/m/l/x
         # - Cho phép gõ tay đường dẫn .pt khác.
-        preset_models = ["yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt"]
+        preset_models = [
+         "yolov8m.pt", 
+         "yolov8l.pt",        
+         "yolov8x.pt",
+         "yolov10m.pt",
+         "yolov10s.pt",
+         "yolov10n.pt",
+         "yolov10l.pt",
+         "yolov10x.pt",
+         ]
         self.model_combo = ctk.CTkComboBox(
             card,
             values=preset_models,

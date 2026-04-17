@@ -13,29 +13,27 @@ from analytics.model_stats import CsvModelStatsLogger, ModelRunStats
 from analytics.storage_sqlite import SessionRow, SQLiteStore
 
 # Module: mở video, chạy YOLO chỉ lớp người, vẽ khung, đếm, cảnh báo, tùy chọn lưu ảnh + tracking, thời gian ngồi.
-
-
 @dataclass
 class DetectionConfig:
     """Một bộ tham số cho một lần chạy: đường dẫn video, ngưỡng cảnh báo, lưu ảnh, tracking, kích thước hiển thị…"""
 
     video_path: str  # File video, URL (rtsp/http), hoặc index webcam (vd "0")
-    model_path: str = "yolov8n.pt"  # File trọng số YOLO
+    model_path: str = "yolov10m.pt"  # File trọng số YOLO      yolov10m.pt,  yolov10s.pt
     threshold: int = 5  # Số người tối đa cho phép; vượt thì hiện cảnh báo đỏ
     save_warning_shot: bool = False  # Bật thì lưu ảnh màn hình theo chu kỳ
     output_dir: str = "screenshots"  # Thư mục lưu ảnh (tương đối thư mục project)
     cooldown_seconds: float = 2.0  # Khoảng cách tối thiểu giữa hai lần lưu ảnh (giây)
-    inference_size: int = 512  # Kích thước ảnh đưa vào YOLO (imgsz)
-    conf_threshold: float = 0.35  # Ngưỡng độ tin cậy tối thiểu để giữ detection
+    inference_size: int = 768  # Kích thước ảnh đưa vào YOLO (imgsz)
+    conf_threshold: float = 0.25  # Ngưỡng độ tin cậy tối thiểu để giữ detection
     display_width: int = 1280  # Kích thước cửa sổ hiển thị (rộng)
     display_height: int = 720  # Kích thước cửa sổ hiển thị (cao)
     process_every_n_frames: int = 3  # Chỉ chạy suy luận mỗi N frame
     max_grab_frames: int = 1  # Số frame grab thêm trước read (giảm trễ)
-    track_every_n_frames: int = 1  # Chạy tracker mỗi N frame, frame giữa dùng cache để tăng FPS
+    track_every_n_frames: int = 2  # Chạy tracker mỗi N frame, frame giữa dùng cache để tăng FPS
     performance_mode: str = "balanced"  # fast | balanced | quality
     draw_labels_every_n_frames: int = 1  # Vẽ label mỗi N frame để giảm tải render
     # Cấu hình cho tracking / session thời gian ngồi
-    max_track_lost_seconds: float = 10.0  # Mất dấu quá lâu thì coi như rời quán
+    max_track_lost_seconds: float = 4.0  # Mất dấu quá lâu thì coi như rời quán
     min_session_duration_seconds: float = 5.0  # Chỉ log session nếu ngồi tối thiểu bấy nhiêu giây
     enable_csv_logging: bool = True  # Ghi log session ra file CSV cục bộ
     # Tracker (Ultralytics)
@@ -54,7 +52,8 @@ class DetectionConfig:
 class PeopleCounterModel:
     """Bọc YOLOv8: phát hiện người (class 0), tracking, đếm, hiển thị bằng OpenCV và log thời gian ngồi."""
 
-    def __init__(self, model_path: str = "yolov8n.pt"):
+
+    def __init__(self, model_path: str = "yolov8m.pt"):
         """Nạp model từ file .pt; lưu thư mục project để ghép đường dẫn output; fuse() giúp suy luận nhanh hơn một chút."""
         self.model = YOLO(model_path)
         self.project_dir = os.path.dirname(os.path.abspath(__file__))
