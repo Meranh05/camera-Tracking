@@ -13,7 +13,7 @@
 
 ## 1) Mô tả bài toán
 
-Ứng dụng đọc video hoặc stream từ camera, sử dụng `YOLOv8` để phát hiện lớp `person`, sau đó:
+Ứng dụng đọc video hoặc stream từ camera, sử dụng `YOLOv10` để phát hiện lớp `person`, sau đó:
 - Chỉ giữ lại đối tượng lớp `person`.
 - Gán **ID tracking ổn định** cho từng người (ByteTrack/BoT-SORT của Ultralytics).
 - Vẽ khung + nhãn `ID | conf | time(s)` quanh mỗi người.
@@ -30,7 +30,7 @@
 
 ## 2) Tính năng chính
 
-- **Nhận diện người real-time** bằng `YOLOv8` (mặc định class `person`).
+- **Nhận diện người real-time** bằng `YOLOv10` (mặc định class `person`).
 - **Tracking ID** ổn định (ByteTrack/BoT-SORT qua Ultralytics).
 - **Overlay thông tin** trên video:
   - `ID`, `% confidence`, `thời gian ngồi (s)` cho từng người.
@@ -46,7 +46,7 @@
   - CSV report theo ngày/giờ (`output/report_day.csv`, `output/report_hour.csv`).
 - **UI CustomTkinter**:
   - Chọn video / webcam / camera IP.
-  - Chọn model YOLO (preset `yolov8n/s/m/l/x`).
+  - Chọn model YOLO (preset `yolov10m/s/n/l/x`).
   - Thiết lập ngưỡng cảnh báo, screenshot interval, thư mục ảnh.
   - Nút `Start`, `About`, `Exit`.
 - Thoát video bằng **ESC** hoặc đóng cửa sổ OpenCV (`X`).
@@ -58,7 +58,7 @@
 ```text
 CameraTracking/
 ├── main.py                  # UI CustomTkinter: form cấu hình + gọi PeopleCounterModel
-├── detection_model.py       # Pipeline YOLOv8 + tracker + ROI + logging
+├── detection_model.py       # Pipeline YOLOv10 + tracker + ROI + logging
 ├── core/
 │   ├── __init__.py
 │   ├── tracking.py          # Track, SimpleIOUTracker, UltralyticsTrackerAdapter
